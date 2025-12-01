@@ -1,0 +1,99 @@
+<!--
+Ce fichier est un template partiel qui génère la table principale pour la vue du MJ.
+Il est inclus dans 'index.html' et est rechargé dynamiquement via l'API.
+'participants', 'current_turn_index' et 'all_statuses' sont passés en contexte par le serveur Flask.
+-->
+{% if participants %}
+    <!-- Boucle sur chaque participant dans la liste d'initiative. -->
+    {% for participant in participants %}
+        {% set participant_loop = loop %} <!-- Sauvegarde la variable 'loop' pour l'utiliser dans des blocs imbriqués -->
+    
+    <!--
+    La classe 'active' est ajoutée si l'index du participant correspond à l'index du tour actuel.
+    La classe de rôle (player, ally, monster) et de statut (status-dead, etc.) sont utilisées pour le style CSS.
+    -->
+    <div class="participant {{ participant.role }} {% if loop.index0 == current_turn_index %}active{% endif %} {{ participant.status.class }}">
+        <span class="rank">{{ loop.index }}</span> <!-- Affiche le rang (1, 2, 3...) -->
+        <span class="name">
+            {{ participant.name }}
+            <!-- Affiche un badge si le participant a fait un succès critique à l'initiative -->
+            {% if participant.is_critical %}
+                <span class="crit-bonus">CRITIQUE! (+2)</span>
+            {% endif %}
+        </span>
+
+        <!-- L'affichage de l'initiative est différent pour les joueurs et les PNJ. -->
+        {% if participant.is_player %}
+            <!-- Pour les joueurs, l'initiative est un champ cliquable qui ouvre un pavé numérique. -->
+            <span class="initiative-input" data-index="{{ loop.index0 }}">{{ participant.initiative_roll }}</span>
+            <!-- Un champ caché est utilisé pour soumettre la valeur via le formulaire principal. -->
+            <input type="hidden" name="p_{{ loop.index0 }}" id="p_input_{{ loop.index0 }}" value="{{ participant.initiative_roll }}">
+        {% else %}
+            <!-- Pour les PNJ, l'initiative est juste affichée. -->
+            <span class="initiative-roll">{{ participant.initiative_roll }}</span>
+        {% endif %}
+
+        <!-- Contrôles spécifiques au MJ pour chaque participant -->
+        <div class="wound-controls" style="display: flex; margin-left: 15px;">
+            <button type="submit" formaction="{{ url_for('add_wound', index=loop.index0) }}" formmethod="post" class="btn btn-danger" style="padding: 2px 8px; font-size: 0.9em;">+ Blessure</button>
+            <button type="submit" formaction="{{ url_for('remove_wound', index=loop.index0) }}" formmethod="post" class="btn" style="padding: 2px 8px; font-size: 0.9em;">- Blessure</button>
+            <button type="submit" formaction="{{ url_for('remove_participant', index=loop.index0) }}" formmethod="post" class="btn btn-danger" style="padding: 2px 8px; font-size: 0.9em;">Supprimer</button>
+            <!--
+            Ce bouton ouvre la modale d'édition.
+            Les attributs 'data-*' sont utilisés pour passer les informations actuelles du participant au JavaScript
+            qui remplit le formulaire de la modale.
+            -->
+            <button type="button" class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.9em;" data-bs-toggle="modal" data-bs-target="#editModal" data-participant-index="{{ loop.index0 }}" data-participant-name="{{ participant.name }}" data-participant-initiative="{{ participant.initiative_roll }}" data-participant-role="{{ participant.role }}" data-participant-type="{{ participant.p_type }}" data-participant-portrait="{{ participant.portrait or '' }}">Éditer</button>
+        </div>
+
+        <!-- Section pour afficher et gérer les blessures (semble être une version alternative/ancienne des contrôles ci-dessus) -->
+        <div class="participant-wounds">
+            <span>Blessures: {{ participant.wounds }}</span>
+        </div>
+
+        <!-- Affiche les statuts actuels du participant -->
+        <div class="participant-statuses mt-2">
+            {% for status in participant.statuses %}
+                <span class="badge bg-warning text-dark me-1 my-1">
+                    {{ status.name }}
+                    {% if status.duration %}
+                        ({{ status.duration }})
+                    {% endif %}
+                    <!-- Bouton pour supprimer un statut individuel -->
+                    <button type="submit" class="btn-close btn-close-white btn-sm" style="font-size: 0.6em; vertical-align: middle;" aria-label="Remove status" 
+                            formaction="{{ url_for('remove_status', p_index=participant_loop.index0) }}" 
+                            name="status" value="{{ status.name }}"></button>
+                </span>
+            {% endfor %}
+        </div>
+
+        <!-- Formulaire pour ajouter un nouveau statut au participant -->
+        <div class="add-status-form mt-2">
+            <div class="input-group input-group-sm">
+                <select name="status" class="form-select">
+                    <option selected disabled>Ajouter état...</option>
+                    {% set applied_statuses = participant.statuses|map(attribute='name')|list %}
+                    <!-- Filtre la liste pour ne montrer que les statuts non encore appliqués -->
+                    {% for status_name in all_statuses %}
+                        {% if status_name not in applied_statuses %}
+                            <option value="{{ status_name }}">{{ status_name }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <input type="number" name="duration" class="form-control" placeholder="Durée" style="width: 80px;">
+                <button class="btn btn-outline-primary" type="submit" formaction="{{ url_for('add_status', p_index=loop.index0) }}">OK</button>
+            </div>
+        </div>
+
+        <!-- Affiche l'état dérivé des blessures (ex: -1, Incapacité, Mort) -->
+        {% if participant.status.text %}
+            <span class="status-display {{ participant.status.class }}">
+                {{ participant.status.text }}
+            </span>
+        {% endif %}
+    </div>
+    {% endfor %}
+{% else %}
+    <!-- Message affiché si la liste des participants est vide -->
+    <p style="text-align: center; color: #888;">Aucun participant pour le moment.</p>
+{% endif %}

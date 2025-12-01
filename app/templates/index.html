@@ -1,0 +1,524 @@
+<!--
+Ce fichier est la page principale de l'application, destinée au Maître de Jeu (MJ).
+Elle contient toutes les commandes pour gérer les combats, les participants et les rencontres.
+Elle utilise JavaScript et Socket.IO pour se mettre à jour en temps réel sans recharger la page.
+-->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Initiative Tracker</title>
+    <!-- Les styles CSS sont directement inclus dans le HTML pour la simplicité de ce projet. -->
+    <style>
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.6); 
+        }
+        .modal-content {
+            background-color: #2c2c2c;
+            margin: 15% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 300px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+        .keypad button {
+            padding: 15px 10px;
+            font-size: 1.2em;
+            background-color: #444;
+            color: #eee;
+            border: 1px solid #666;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .keypad button:hover {
+            background-color: #555;
+        }
+        .initiative-input {
+            cursor: pointer;
+            display: inline-block;
+            min-width: 40px;
+            padding: 5px;
+            background-color: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .initiative-input:hover {
+            background-color: #444;
+        }
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #1e1e1e; 
+            color: #e0e0e0; 
+            margin: 0; 
+            padding: 20px;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background-color: #2d2d2d; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.5); 
+        }
+        h1, h2 { 
+            color: #d6a248; 
+            text-align: center; 
+            border-bottom: 2px solid #d6a248; 
+            padding-bottom: 10px; 
+        }
+        .participant {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 5px;
+            border-left: 5px solid transparent;
+            background-color: #3a3a3a;
+        }
+        .participant.player { border-left-color: #4a90e2; }
+        .participant.ally { border-left-color: #2ecc71; }
+        .participant.monster { border-left-color: #e24a4a; }
+        .participant.active { 
+            background-color: #4a4a4a; 
+            box-shadow: 0 0 10px #d6a248;
+        }
+        .rank { 
+            font-weight: bold; 
+            font-size: 1.2em; 
+            min-width: 30px; 
+        }
+        .rank::after { content: '.'; }
+        .name { 
+            font-weight: bold; 
+            font-size: 1.1em; 
+            flex-grow: 1; 
+        }
+        .initiative-roll { 
+            font-style: italic; 
+            color: #ccc; 
+            margin-left: 10px; 
+        }
+        .btn { 
+            background-color: #4a90e2; 
+            color: white; 
+            padding: 8px 15px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            text-decoration: none; 
+            font-size: 1em; 
+            margin: 5px;
+        }
+        .btn:hover { 
+            background-color: #357abd; 
+        }
+        .btn-danger { 
+            background-color: #e24a4a; 
+        }
+        .btn-danger:hover { 
+            background-color: #c0392b; 
+        }
+        .btn-success { 
+            background-color: #2ecc71; 
+        }
+        .btn-success:hover { 
+            background-color: #27ae60; 
+        }
+        .status-display {
+            margin-left: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .status-wounded { background-color: #b8860b; color: #fff; }
+        .status-incapacitated { background-color: #8b0000; color: #fff; }
+        .status-dead { 
+            background-color: #1a1a1a; 
+            color: #666; 
+            text-decoration: line-through;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ccc;
+        }
+        .form-group input[type="text"],
+        .form-group select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background-color: #2c2c2c;
+            color: #e0e0e0;
+        }
+        .main-controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .encounters-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+        .encounter-item {
+            background-color: #2c2c2c;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gestionnaire d'Initiative</h1>
+        
+        <!-- Section avec des liens vers les autres vues de l'application -->
+        <div class="info">
+            <a href="/view" target="_blank" class="btn">Ouvrir la vue OBS</a>
+            <a href="/portrait_view" target="_blank" class="btn">Ouvrir la vue Portrait</a>
+        </div>
+
+        <!-- Section principale affichant la liste des participants -->
+        <h2>Ordre d'Initiative</h2>
+        <form method="post">
+            <!--
+            Le contenu de cette div est chargé dynamiquement via JavaScript (API /api/main_content).
+            Le template '_main_table.html' est injecté ici.
+            -->
+            <div id="main-content-wrapper">
+                {% include '_main_table.html' %}
+            </div>
+            <div style="text-align: center; margin-top: 10px;">
+                <button type="submit" formaction="{{ url_for('update_initiatives') }}" class="btn">Mettre à jour l'initiative</button>
+            </div>
+        </form>
+
+        <!-- Boutons de contrôle principaux pour le déroulement du combat -->
+        <div class="main-controls">
+            <form method="post" style="display: inline;">
+                <button type="submit" formaction="{{ url_for('next_turn') }}" class="btn btn-success">Tour Suivant</button>
+            </form>
+            <form method="post" style="display: inline;">
+                <button type="submit" formaction="{{ url_for('new_round') }}" class="btn">Nouvelle Manche</button>
+            </form>
+            <form method="post" style="display: inline;">
+                <button type="submit" formaction="{{ url_for('reset_combat') }}" class="btn">Réinitialiser Combat</button>
+            </form>
+            <form method="post" style="display: inline;">
+                <button type="submit" formaction="{{ url_for('reset') }}" class="btn btn-danger">Réinitialiser Tout</button>
+            </form>
+        </div>
+
+        <!-- Formulaire pour ajouter un nouveau participant -->
+        <div class="form-container">
+            <h2>Ajouter un Participant</h2>
+            <form method="post" id="add-participant-form">
+                <div class="form-group">
+                    <label for="name">Nom</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="is_player">Type</label>
+                    <select id="is_player" name="is_player" onchange="toggleTypeField()">
+                        <option value="player">Joueur</option>
+                        <option value="ally">Allié</option>
+                        <option value="monster">Monstre</option>
+                    </select>
+                </div>
+                <!-- Ce champ n'est visible que si le type sélectionné n'est pas 'Joueur' -->
+                <div class="form-group" id="type-form-group" style="display: none;">
+                    <label for="type">Type de personnage</label>
+                    <select id="type" name="type">
+                        <option value="Extra">Extra (Sbire)</option>
+                        <option value="Joker">Joker (Important)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="portrait">Portrait</label>
+                    <div class="input-group">
+                        <input type="text" id="portrait" name="portrait" placeholder="Exemple: guerrier.jpg ou npcs/orc.png">
+                        <button type="button" class="btn btn-secondary" onclick="openPortraitSelector('portrait')">Parcourir</button>
+                    </div>
+                </div>
+                <button type="submit" formaction="{{ url_for('add') }}" class="btn btn-success">Ajouter</button>
+            </form>
+        </div>
+
+        <!-- Section pour sauvegarder/charger les joueurs et les rencontres -->
+        <div class="encounters-container">
+            <h2>Gérer les Joueurs</h2>
+            <div class="player-controls" style="margin-bottom: 20px;">
+                <form method="post" style="display: inline-block;">
+                    <button type="submit" formaction="{{ url_for('save_players_route') }}" class="btn">Sauvegarder les Joueurs</button>
+                </form>
+                <form method="post" style="display: inline-block;">
+                    <button type="submit" formaction="{{ url_for('load_players_route') }}" class="btn">Charger les Joueurs</button>
+                </form>
+            </div>
+
+            <h2>Gérer les Combats</h2>
+            <form method="post">
+                <div class="form-group">
+                    <label for="encounter_name">Nom du combat</label>
+                    <input type="text" id="encounter_name" name="encounter_name" required>
+                </div>
+                <button type="submit" formaction="{{ url_for('save_encounter_route') }}" class="btn">Sauvegarder le combat</button>
+            </form>
+
+            <h3>Combats enregistrés</h3>
+            <div class="encounters-list">
+                <!-- Boucle sur les rencontres sauvegardées et les affiche -->
+                {% if encounters %}
+                    {% for encounter in encounters %}
+                    <div class="encounter-item">
+                        <h4>{{ encounter.name }}</h4>
+                        <p>Créé le {{ encounter.date_created }}</p>
+                        <p>{{ encounter.monster_count }} monstres, {{ encounter.ally_count }} alliés</p>
+                        <form method="post" style="display: inline;">
+                            <button type="submit" formaction="{{ url_for('load_encounter_route', filename=encounter.filename) }}" class="btn">Charger</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p>Aucun combat enregistré.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale du pavé numérique pour saisir l'initiative rapidement -->
+    <div id="keypadModal" class="modal">
+        <div class="modal-content">
+            <h3>Choisir l'initiative</h3>
+            <div class="keypad">
+                {% for i in range(1, 21) %}
+                <button type="button" class="keypad-btn">{{ i }}</button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale pour éditer les informations d'un participant -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3 id="editModalLabel">Éditer le participant</h3>
+            <form id="editParticipantForm" style="text-align: left;">
+                <input type="hidden" id="edit-participant-index" name="index">
+                <div class="form-group">
+                    <label for="edit-name">Nom</label>
+                    <input type="text" id="edit-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-initiative">Initiative</label>
+                    <input type="number" id="edit-initiative" name="initiative_roll" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-role">Rôle</label>
+                    <select id="edit-role" name="role">
+                        <option value="player">Joueur</option>
+                        <option value="ally">Allié</option>
+                        <option value="monster">Monstre</option>
+                    </select>
+                </div>
+                <div class="form-group" id="edit-type-form-group">
+                    <label for="edit-type">Type</label>
+                    <select id="edit-type" name="p_type">
+                        <option value="Joker">Joker</option>
+                        <option value="Extra">Extra</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit-portrait">Portrait</label>
+                    <div class="input-group">
+                        <input type="text" id="edit-portrait" name="portrait" placeholder="Exemple: guerrier.jpg ou npcs/orc.png">
+                        <button type="button" class="btn btn-secondary" onclick="openPortraitSelector('edit-portrait')">Parcourir</button>
+                    </div>
+                </div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" class="btn" id="cancelEditButton">Annuler</button>
+                    <button type="button" class="btn btn-success" id="saveEditButton">Sauvegarder</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Inclusion de la bibliothèque Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    
+    <!-- Script principal de la page -->
+    <script>
+        // Affiche ou cache le champ 'Type de personnage' en fonction du rôle sélectionné.
+        function toggleTypeField() {
+            const typeSelect = document.getElementById('is_player');
+            const typeFormGroup = document.getElementById('type-form-group');
+            typeFormGroup.style.display = (typeSelect.value === 'player') ? 'none' : 'block';
+        }
+        
+        // --- Fonctions de mise à jour dynamique ---
+
+        // Récupère et injecte le contenu de la table principale depuis le serveur.
+        async function updateMainContent() {
+            try {
+                const response = await fetch('/api/main_content');
+                const newContent = await response.text();
+                document.getElementById('main-content-wrapper').innerHTML = newContent;
+                // Après chaque mise à jour, il faut réactiver les éléments interactifs (modales, etc.).
+                initializeDynamicElements();
+            } catch (error) {
+                console.error('Error updating main content:', error);
+            }
+        }
+
+        // --- Gestion des formulaires en AJAX ---
+        
+        // Intercepte la soumission des formulaires pour les envoyer en AJAX.
+        // Cela évite de recharger la page.
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+            const submitter = event.submitter;
+
+            const url = submitter?.formAction || form.action;
+            const method = submitter?.formMethod || form.method;
+            const formData = new FormData(form);
+
+            if (submitter && submitter.name) {
+                formData.append(submitter.name, submitter.value);
+            }
+
+            try {
+                const response = await fetch(url, { method: method, body: formData });
+                const data = await response.json();
+                if (data.success) {
+                    // Si le formulaire d'ajout a réussi, on le réinitialise.
+                    if (form.id === 'add-participant-form') {
+                        form.reset();
+                        toggleTypeField();
+                    }
+                    // La mise à jour de l'affichage se fera via l'événement WebSocket.
+                } else {
+                    console.error('Action failed:', data.message);
+                }
+            } catch (error) {
+                console.error('Error submitting form:', error);
+            }
+        }
+
+        // --- Initialisation des éléments dynamiques ---
+        
+        // Attache les écouteurs d'événements aux éléments qui sont ajoutés dynamiquement.
+        function initializeDynamicElements() {
+            const editModal = document.getElementById('editModal');
+            
+            // Logique pour ouvrir la modale d'édition et la remplir avec les données du participant.
+            document.querySelectorAll('button[data-bs-target="#editModal"]').forEach(button => {
+                button.addEventListener('click', function() {
+                    const ds = this.dataset;
+                    document.getElementById('edit-participant-index').value = ds.participantIndex;
+                    document.getElementById('edit-name').value = ds.participantName;
+                    document.getElementById('edit-initiative').value = ds.participantInitiative;
+                    document.getElementById('edit-role').value = ds.participantRole;
+                    document.getElementById('edit-type').value = ds.participantType;
+                    document.getElementById('edit-portrait').value = ds.participantPortrait;
+                    editModal.style.display = 'block';
+                });
+            });
+
+            // Boutons de la modale d'édition.
+            document.getElementById('cancelEditButton').addEventListener('click', () => editModal.style.display = 'none');
+            document.getElementById('saveEditButton').addEventListener('click', async () => {
+                const form = document.getElementById('editParticipantForm');
+                const index = document.getElementById('edit-participant-index').value;
+                const url = `/participant/${index}/edit`;
+                try {
+                    const response = await fetch(url, { method: 'POST', body: new FormData(form) });
+                    if ((await response.json()).success) {
+                        editModal.style.display = 'none';
+                        // La mise à jour se fera via WebSocket.
+                    }
+                } catch (error) {
+                    console.error('Error saving participant:', error);
+                }
+            });
+
+            // Logique pour le pavé numérique d'initiative.
+            const keypadModal = document.getElementById('keypadModal');
+            let currentTargetIndex = null;
+            document.querySelectorAll('.initiative-input').forEach(span => {
+                span.addEventListener('click', function() {
+                    currentTargetIndex = this.dataset.index;
+                    keypadModal.style.display = 'block';
+                });
+            });
+            document.querySelectorAll('.keypad-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    if (currentTargetIndex !== null) {
+                        const value = this.textContent;
+                        document.getElementById(`p_input_${currentTargetIndex}`).value = value;
+                        document.querySelector(`.initiative-input[data-index='${currentTargetIndex}']`).textContent = value;
+                        keypadModal.style.display = 'none';
+                        currentTargetIndex = null;
+                    }
+                });
+            });
+            
+            // Ferme la modale si on clique en dehors.
+            window.onclick = (event) => {
+                if (event.target == keypadModal) keypadModal.style.display = 'none';
+                if (event.target == editModal) editModal.style.display = 'none';
+            }
+        }
+        
+        // Ouvre le sélecteur de portrait dans une popup.
+        function openPortraitSelector(targetField) {
+            window.open(`/select_portrait?target=${targetField}`, 'portraitSelector', 'width=800,height=600,scrollbars=yes')?.focus();
+        }
+        
+        // Écoute les messages de la popup pour récupérer le portrait sélectionné.
+        window.addEventListener('message', function(event) {
+            if (event.data?.type === 'portrait-selected') {
+                document.getElementById(event.data.target).value = event.data.portrait;
+            }
+        });
+
+        // --- Initialisation au chargement de la page ---
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleTypeField();
+            initializeDynamicElements();
+
+            // Attache le gestionnaire de soumission AJAX à tous les formulaires.
+            document.querySelectorAll('form').forEach(form => form.addEventListener('submit', handleFormSubmit));
+            
+            // Connexion au serveur WebSocket.
+            const socket = io();
+
+            // Écoute l'événement 'update_data' envoyé par le serveur.
+            // Quand il est reçu, on met à jour le contenu de la page.
+            socket.on('update_data', function() {
+                console.log('Update event received. Refreshing content.');
+                updateMainContent();
+            });
+        });
+    </script>
+</body>
+</html>

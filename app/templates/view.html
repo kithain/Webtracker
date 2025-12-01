@@ -1,0 +1,75 @@
+<!--
+Ce fichier est la vue destinée aux joueurs.
+Elle affiche une version simplifiée de la liste d'initiative, conçue pour être montrée
+sur un écran partagé ou via un stream (par ex. OBS).
+Comme la page principale, elle se met à jour automatiquement via WebSockets.
+-->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Vue Initiative</title>
+    <!-- Les styles sont également inclus directement pour la simplicité. -->
+    <style>
+        body { font-family: sans-serif; background-color: #1e1e1e; color: #e0e0e0; margin: 0; padding: 10px; }
+        .container { max-width: 300px; margin: 0 auto; }
+        .participant { display: flex; align-items: center; padding: 10px; margin-bottom: 5px; border-radius: 5px; border-left: 5px solid transparent; transition: all 0.3s ease-in-out; }
+        .participant.player { border-left-color: #4a90e2; background-color: #3a3a3a; }
+        .participant.ally { border-left-color: #2ecc71; background-color: #3a3a3a; }
+        .participant.monster { border-left-color: #e24a4a; background-color: #3a3a3a; }
+        .participant.active { background-color: #4a4a4a; box-shadow: 0 0 8px #d6a248; }
+        .participant.status-out, .participant.status-dead { background-color: #444; color: #888; text-decoration: line-through; }
+        .participant.status-incapacitated { background-color: #5a2d2d; }
+        .rank { font-weight: bold; font-size: 1.1em; min-width: 25px; }
+        .rank::after { content: '.'; }
+        .name { font-weight: bold; font-size: 1em; flex-grow: 1; }
+        .initiative-roll { font-style: italic; color: #ccc; margin-left: 8px; }
+        .crit-bonus { background-color: #d6a248; color: #1e1e1e; padding: 2px 6px; border-radius: 8px; font-size: 0.7em; font-weight: bold; margin-left: 8px; }
+        .status-display { margin-left: 10px; padding: 2px 6px; border-radius: 8px; font-size: 0.8em; }
+        .status-wounded { background-color: #b8860b; color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!--
+        Le contenu de cette div est chargé et mis à jour dynamiquement.
+        Le template '_view_table.html' est injecté ici.
+        -->
+        <div id="view-content-wrapper">
+            {% include '_view_table.html' %}
+        </div>
+    </div>
+
+    <!-- Inclusion de la bibliothèque Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        // Fonction pour récupérer le contenu de la vue depuis le serveur.
+        async function updateContent() {
+            try {
+                // L'API '/api/view_content' renvoie le HTML partiel de la table des joueurs.
+                const response = await fetch('/api/view_content');
+                document.getElementById('view-content-wrapper').innerHTML = await response.text();
+            } catch (error) {
+                console.error('Error updating content:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Connexion au serveur WebSocket.
+            const socket = io();
+
+            socket.on('connect', function() {
+                console.log('Connected to WebSocket server.');
+                // Charge le contenu dès que la connexion est établie.
+                updateContent();
+            });
+
+            // Écoute l'événement 'update_data' envoyé par le serveur.
+            socket.on('update_data', function() {
+                console.log('Update event received. Refreshing view content.');
+                updateContent();
+            });
+        });
+    </script>
+</body>
+</html>

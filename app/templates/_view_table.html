@@ -1,0 +1,85 @@
+<!--
+Ce fichier est un template partiel qui génère la table pour la vue des joueurs.
+Il est inclus dans 'view.html' et est rechargé dynamiquement.
+Il affiche une version épurée des informations, sans les contrôles du MJ.
+-->
+
+<!-- Styles spécifiques pour cette vue, notamment pour les icônes de statut. -->
+<style>
+    .status-icon-small {
+        display: inline-flex;
+        align-items: center;
+        position: relative;
+        margin-right: 3px;
+    }
+    .status-icon-small img {
+        border-radius: 50%;
+        background-color: rgba(0, 0, 0, 0.6);
+        border: 1px solid #ccc;
+    }
+    /* Le fallback est un cercle avec la première lettre du statut, affiché si l'image n'est pas trouvée. */
+    .icon-fallback-small {
+        display: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background-color: rgba(0, 0, 0, 0.6);
+        border: 1px solid #ccc;
+        color: white;
+        font-size: 10px;
+        font-weight: bold;
+        text-align: center;
+        line-height: 16px;
+    }
+    .duration-badge {
+        font-size: 0.6em;
+        margin-left: 1px;
+        color: #666;
+    }
+    /* Style pour l'étoile qui identifie un PNJ de type 'Joker'. */
+    .joker-star {
+        color: gold;
+        font-size: 1.2em;
+        text-shadow: 0px 0px 2px rgba(0,0,0,0.5);
+        vertical-align: middle;
+        display: inline-block;
+        margin-left: 4px;
+    }
+</style>
+
+<!-- Boucle sur chaque participant pour afficher sa ligne dans la liste. -->
+{% for p in participants %}
+<div class="participant {{ p.role }} {{ 'active' if loop.index0 == current_turn_index }} {{ p.status.class }}">
+    <span class="rank">{{ loop.index }}</span>
+    
+    <!-- Affiche les icônes pour chaque statut actif du participant. -->
+    <span class="status-icons-container">
+        {% for status in p.statuses %}
+            <span class="status-icon-small me-1" title="{{ status.name }}{% if status.duration %} ({{ status.duration }}){% endif %}">
+                <!-- Tente de charger l'icône du statut. Si l'image n'existe pas, l'événement 'onerror' cache l'image et affiche le fallback. -->
+                <img src="{{ url_for('static', filename='icons/' + status.name + '.png') }}" alt="{{ status.name }}" width="32" height="32" onerror="this.style.display='none'; this.nextSibling.style.display='inline-block';">
+                <span class="icon-fallback-small">{{ status.name[:1] }}</span>
+                {% if status.duration %}<span class="duration-badge">({{ status.duration }})</span>{% endif %}
+            </span>
+        {% endfor %}
+    </span>
+    
+    <!-- Affiche le nom du participant. Ajoute une étoile pour les PNJ importants ('Joker'). -->
+    <span class="name">{{ p.name }}{% if p.role in ['monster', 'ally'] and p.p_type == 'Joker' %} <span class="joker-star" title="Joker">&#9733;</span>{% endif %}</span>
+    
+    <!-- Affiche le jet d'initiative. -->
+    <span class="initiative-roll">({{ p.initiative_roll }})</span>
+    
+    <!-- Affiche un badge en cas de succès critique. -->
+    {% if p.is_critical %}
+    <span class="crit-bonus">CRITIQUE! (+2)</span>
+    {% endif %}
+    
+    <!-- Affiche l'état lié aux blessures (ex: -1, Mort). -->
+    <div class="status-container">
+        {% if p.status.text %}
+            <span class="status-display {{ p.status.class }}">{{ p.status.text }}</span>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}

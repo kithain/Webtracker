@@ -1,0 +1,41 @@
+{
+  "name": "1",
+  "monsters": [
+    {
+      "name": "MOB",
+      "role": "monster",
+      "p_type": "Extra",
+      "is_player": false,
+      "initiative_roll": 16,
+      "is_critical": false,
+      "wounds": 0,
+      "portrait": "PNJ/PNJ-022.jpg",
+      "statuses": []
+    },
+    {
+      "name": "MOB2",
+      "role": "monster",
+      "p_type": "Joker",
+      "is_player": false,
+      "initiative_roll": 3,
+      "is_critical": false,
+      "wounds": 0,
+      "portrait": "PNJ/PNJ-002.jpg",
+      "statuses": []
+    }
+  ],
+  "allies": [
+    {
+      "name": "Ally1",
+      "role": "ally",
+      "p_type": "Extra",
+      "is_player": false,
+      "initiative_roll": 15,
+      "is_critical": false,
+      "wounds": 0,
+      "portrait": "PNJ/PNJ-053.jpg",
+      "statuses": []
+    }
+  ],
+  "date_created": "2025-12-01 22:53:13"
+}

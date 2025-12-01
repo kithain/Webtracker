@@ -1,0 +1,44 @@
+<!--
+Ce fichier est un template partiel utilisé pour afficher le portrait d'un participant actif.
+Il est inclus dans 'portrait_view.html' et est rechargé dynamiquement.
+'participant' est passé en contexte par le serveur Flask.
+-->
+{% if participant and participant.portrait %}
+    <div class="portrait-container" style="width: 512px; height: 512px;">
+        <!-- Affiche l'image du portrait. -->
+        <img src="{{ url_for('static', filename='portraits/' + participant.portrait) }}" alt="Portrait de {{ participant.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+        
+        <!--
+        Jauge de vie (superposition rouge) :
+        Calcule le pourcentage de blessures pour simuler une jauge de vie qui monte.
+        La logique est différente pour les 'Extra' (une blessure = mort) et les autres.
+        -->
+        {% set wound_percent = (participant.wounds / 4 * 100) if participant.p_type != 'Extra' else (participant.wounds * 100) %}
+        {% if wound_percent > 100 %}{% set wound_percent = 100 %}{% endif %}
+        <div class="health-overlay" style="height: {{ wound_percent }}%;"></div>
+
+        <!-- Superposition des icônes d'état : Affiche les icônes des statuts actifs du participant. -->
+        <div class="status-icons-overlay">
+            {% for status in participant.statuses %}
+                <div class="status-icon" title="{{ status.name }}">
+                    <!-- Tente de charger l'icône, avec un fallback si l'image n'est pas trouvée. -->
+                    <img src="{{ url_for('static', filename='icons/' + status.name + '.png') }}" alt="{{ status.name }}" onerror="this.style.display='none'; this.nextSibling.style.display='block';">
+                    <span class="icon-fallback">{{ status.name[:1] }}</span>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Barre affichant le nom du participant et ses statuts textuels. -->
+        <div class="name-bar">
+            <div class="name">{{ participant.name }}</div>
+            <div class="statuses-text">
+                {% for status in participant.statuses %}
+                    {{ status.name }}{% if status.duration %} ({{ status.duration }}){% endif %}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% else %}
+    <!-- Message affiché s'il n'y a pas de participant actif ou pas de portrait défini. -->
+    <h1>Pas de portrait pour le personnage actif</h1>
+{% endif %}

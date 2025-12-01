@@ -1,0 +1,24 @@
+[
+  {
+    "name": "PJ2",
+    "role": "player",
+    "p_type": "Joker",
+    "is_player": true,
+    "initiative_roll": 15,
+    "is_critical": false,
+    "wounds": 0,
+    "portrait": "PNJ-086.jpg",
+    "statuses": []
+  },
+  {
+    "name": "PJ",
+    "role": "player",
+    "p_type": "Joker",
+    "is_player": true,
+    "initiative_roll": 12,
+    "is_critical": false,
+    "wounds": 0,
+    "portrait": "man080.jpg",
+    "statuses": []
+  }
+]
