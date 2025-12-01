@@ -1,6 +1,6 @@
 # Web Initiative Tracker
 
-Un gestionnaire d'initiative interactif pour les jeux de rôle sur table, conçu pour fluidifier la gestion des combats.
+Un gestionnaire d'initiative interactif pour les JDR, conçu pour fluidifier la gestion des combats.
 
 ## Description
 
